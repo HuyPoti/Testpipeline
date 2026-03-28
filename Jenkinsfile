@@ -9,16 +9,15 @@ pipeline {
 
     stages {
         stage('Restore') {
-            steps {
-                echo 'Restoring dependencies...'
-                script {
-                    if (isUnix()) {
-                        sh 'dotnet restore'
-                    } else {
-                        bat 'dotnet restore'
-                    }
-                }
-            }
+            environment {
+        // Ép các công cụ sử dụng IPv4 khi có thể
+        DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER = "0" 
+        }
+        steps {
+            // Hoặc dùng lệnh linux để tắt tạm thời ưu tiên IPv6 cho phiên làm việc này
+            sh 'export DOTNET_PRINT_TELEMETRY_MESSAGE=false'
+            sh 'dotnet restore'
+        }
         }
 
         stage('Build') {
