@@ -11,21 +11,17 @@ pipeline {
 
     stages {
         stage('Restore') {
-            environment {
-        // Ép các công cụ sử dụng IPv4 khi có thể
-        DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER = "0" 
-        }
-        steps {
-            sh 'export DOTNET_PRINT_TELEMETRY_MESSAGE=false'
-            sh 'dotnet restore SimpleApp.slnx'
-        }
+            steps {
+                echo 'Restoring projects...'
+                sh 'dotnet restore SimpleApp.Tests/SimpleApp.Tests.csproj'
+            }
         }
 
         stage('Build') {
             steps {
                 echo 'Building the application...'
                 script {
-                    def buildCmd = "dotnet build SimpleApp.slnx --configuration ${env.BUILD_CONFIGURATION} --no-restore"
+                    def buildCmd = "dotnet build SimpleApp.Tests/SimpleApp.Tests.csproj --configuration ${env.BUILD_CONFIGURATION} --no-restore"
                     if (isUnix()) {
                         sh buildCmd
                     } else {
@@ -39,7 +35,7 @@ pipeline {
             steps {
                 echo 'Running unit tests...'
                 script {
-                    def testCmd = "dotnet test SimpleApp.slnx --configuration ${env.BUILD_CONFIGURATION} --no-build --verbosity normal"
+                    def testCmd = "dotnet test SimpleApp.Tests/SimpleApp.Tests.csproj --configuration ${env.BUILD_CONFIGURATION} --no-build --verbosity normal"
                     if (isUnix()) {
                         sh testCmd
                     } else {
@@ -53,10 +49,12 @@ pipeline {
             steps {
                 echo 'Publishing the application...'
                 script {
+                    // Specify project file to avoid confusion with test project
+                    def publishCmd = "dotnet publish SimpleApp.csproj --configuration ${env.BUILD_CONFIGURATION} --no-build --output ./publish"
                     if (isUnix()) {
-                        sh "dotnet publish SimpleApp.csproj --configuration ${env.BUILD_CONFIGURATION} --no-build --output ./publish"
+                        sh publishCmd
                     } else {
-                        bat "dotnet publish SimpleApp.csproj --configuration ${env.BUILD_CONFIGURATION} --no-build --output ./publish"
+                        bat publishCmd
                     }
                 }
             }
