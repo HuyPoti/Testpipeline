@@ -1,65 +1,52 @@
 pipeline {
     agent any
-
+    
     environment {
-        DOTNET_CLI_TELEMETRY_OPTOUT = '1'
-        DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
+        // Ép dotnet sử dụng IPv4 để tránh lỗi timeout NU1301 đã gặp lúc đầu
+        DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER = "0"
+        DOTNET_PRINT_TELEMETRY_MESSAGE = "false"
         BUILD_CONFIGURATION = 'Release'
-        DOTNET_PRINT_TELEMETRY_MESSAGE = 'false'
-        DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER = '0'
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Restore') {
             steps {
-                echo 'Restoring projects...'
+                echo 'Restoring NuGet packages...'
+                // Khôi phục tất cả thư viện (bao gồm cả dự án chính thông qua tham chiếu)
                 sh 'dotnet restore SimpleApp.Tests/SimpleApp.Tests.csproj'
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Building the application...'
-                script {
-                    def buildCmd = "dotnet build SimpleApp.Tests/SimpleApp.Tests.csproj --configuration ${env.BUILD_CONFIGURATION} --no-restore"
-                    if (isUnix()) {
-                        sh buildCmd
-                    } else {
-                        bat buildCmd
-                    }
-                }
+                echo 'Building the application (including tests)...'
+                // Build dự án thử nghiệm sẽ tự động build đồng thời cả dự án chính
+                sh "dotnet build SimpleApp.Tests/SimpleApp.Tests.csproj --configuration ${env.BUILD_CONFIGURATION} --no-restore"
             }
         }
 
         stage('Test') {
             steps {
-                echo 'Running unit tests...'
-                script {
-                    def testCmd = "dotnet test SimpleApp.Tests/SimpleApp.Tests.csproj --configuration ${env.BUILD_CONFIGURATION} --no-build --verbosity normal"
-                    if (isUnix()) {
-                        sh testCmd
-                    } else {
-                        bat testCmd
-                    }
-                }
+                echo 'Running Unit Tests...'
+                // Chạy test sử dụng file đã compile từ bước Build
+                sh "dotnet test SimpleApp.Tests/SimpleApp.Tests.csproj --configuration ${env.BUILD_CONFIGURATION} --no-build"
             }
         }
 
         stage('Publish') {
             steps {
                 echo 'Publishing the application...'
-                script {
-                    // Specify project file to avoid confusion with test project
-                    def publishCmd = "dotnet publish SimpleApp.csproj --configuration ${env.BUILD_CONFIGURATION} --no-build --output ./publish"
-                    if (isUnix()) {
-                        sh publishCmd
-                    } else {
-                        bat publishCmd
-                    }
-                }
+                // Xuất bản ứng dụng chính cho việc triển khai
+                sh "dotnet publish SimpleApp.csproj --configuration ${env.BUILD_CONFIGURATION} --no-build --output ./publish"
             }
         }
-        
+
         stage('Archive Artifacts') {
             steps {
                 echo 'Archiving build artifacts...'
@@ -67,16 +54,16 @@ pipeline {
             }
         }
     }
-
+    
     post {
         always {
             echo 'Pipeline execution finished.'
         }
         success {
-            echo 'Build succeeded!'
+            echo 'Build, Test and Publish succeeded!'
         }
         failure {
-            echo 'Build failed!'
+            echo 'Build failed! Please check the console log.'
         }
     }
 }
