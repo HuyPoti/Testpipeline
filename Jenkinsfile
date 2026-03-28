@@ -5,6 +5,8 @@ pipeline {
         DOTNET_CLI_TELEMETRY_OPTOUT = '1'
         DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
         BUILD_CONFIGURATION = 'Release'
+        DOTNET_PRINT_TELEMETRY_MESSAGE = 'false'
+        DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER = '0'
     }
 
     stages {
@@ -14,9 +16,8 @@ pipeline {
         DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER = "0" 
         }
         steps {
-            // Hoặc dùng lệnh linux để tắt tạm thời ưu tiên IPv6 cho phiên làm việc này
             sh 'export DOTNET_PRINT_TELEMETRY_MESSAGE=false'
-            sh 'dotnet restore'
+            sh 'dotnet restore SimpleApp.slnx'
         }
         }
 
@@ -24,10 +25,11 @@ pipeline {
             steps {
                 echo 'Building the application...'
                 script {
+                    def buildCmd = "dotnet build SimpleApp.slnx --configuration ${env.BUILD_CONFIGURATION} --no-restore"
                     if (isUnix()) {
-                        sh "dotnet build --configuration ${env.BUILD_CONFIGURATION} --no-restore"
+                        sh buildCmd
                     } else {
-                        bat "dotnet build --configuration ${env.BUILD_CONFIGURATION} --no-restore"
+                        bat buildCmd
                     }
                 }
             }
@@ -37,11 +39,11 @@ pipeline {
             steps {
                 echo 'Running unit tests...'
                 script {
-                    // SimpleApp currently only has one project, test it directly 
+                    def testCmd = "dotnet test SimpleApp.slnx --configuration ${env.BUILD_CONFIGURATION} --no-build --verbosity normal"
                     if (isUnix()) {
-                        sh "dotnet test --configuration ${env.BUILD_CONFIGURATION} --no-build --verbosity normal"
+                        sh testCmd
                     } else {
-                        bat "dotnet test --configuration ${env.BUILD_CONFIGURATION} --no-build --verbosity normal"
+                        bat testCmd
                     }
                 }
             }
